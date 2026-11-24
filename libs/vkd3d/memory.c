@@ -978,7 +978,7 @@ static HRESULT vkd3d_try_allocate_device_memory(struct d3d12_device *device,
     struct vkd3d_memory_info *memory_info = &device->memory_info;
     VkDeviceSize *type_current, heap_size;
     VkMemoryAllocateInfo allocate_info;
-    bool rebar_budget, can_fallback_sysmem;
+    bool rebar_budget = false, can_fallback_sysmem;
     VkResult vr;
 
     device_local_mask = 0u;
@@ -1132,7 +1132,9 @@ static HRESULT vkd3d_try_allocate_device_memory(struct d3d12_device *device,
     {
         type_current = &memory_info->type_current[allocate_info.memoryTypeIndex];
 
-        if (!rebar_budget || !respect_budget)
+        /* The budget lock is only still held if the loop broke out on a successful
+         * ReBAR-budgeted allocation. Every failure path inside the loop already released it. */
+        if (vr != VK_SUCCESS || !rebar_budget || !respect_budget)
             pthread_mutex_lock(&memory_info->budget_lock);
 
         if (vr == VK_SUCCESS)
